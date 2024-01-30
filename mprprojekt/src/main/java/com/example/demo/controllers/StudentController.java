@@ -26,12 +26,8 @@ public class StudentController {
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getStudentById(@PathVariable Long id) {
-        try {
             StudentReadDTO student = studentService.getById(id);
             return ResponseEntity.ok(student);
-        } catch (InvalidValue e) {
-            return ResponseEntity.badRequest().body("Invalid value provided");
-        }
     }
 
     @DeleteMapping("/{id}")
