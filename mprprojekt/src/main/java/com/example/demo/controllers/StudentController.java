@@ -1,5 +1,6 @@
 package com.example.demo.controllers;
 
+import com.example.demo.exceptions.InvalidValue;
 import com.example.demo.model.dto.StudentReadDTO;
 import com.example.demo.model.dto.StudentWriteDTO;
 import com.example.demo.services.StudentService;
@@ -24,9 +25,13 @@ public class StudentController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<StudentReadDTO> getStudentById(@PathVariable Long id) {
-        StudentReadDTO student = studentService.getById(id);
-        return new ResponseEntity<>(student, HttpStatus.OK);
+    public ResponseEntity<?> getStudentById(@PathVariable Long id) {
+        try {
+            StudentReadDTO student = studentService.getById(id);
+            return ResponseEntity.ok(student);
+        } catch (InvalidValue e) {
+            return ResponseEntity.badRequest().body("Invalid value provided");
+        }
     }
 
     @DeleteMapping("/{id}")

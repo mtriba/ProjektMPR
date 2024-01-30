@@ -9,98 +9,114 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.Collections;
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 public class StudentControllerTests {
+
+    private MockMvc mockMvc;
 
     @Mock
     private StudentService studentService;
 
     @InjectMocks
     private StudentController studentController;
-
     @BeforeEach
-    void setUp() {
-        MockitoAnnotations.initMocks(this);
+    public void setup() {
+        MockitoAnnotations.openMocks(this);
+        mockMvc = MockMvcBuilders.standaloneSetup(studentController).build();
     }
 
+
     @Test
-    void testGetAllStudents() {
+    void testGetAllStudents() throws Exception {
         List<StudentReadDTO> mockStudents = Collections.singletonList(new StudentReadDTO());
         when(studentService.getAll()).thenReturn(mockStudents);
 
-        ResponseEntity<List<StudentReadDTO>> response = studentController.getAllStudents();
+        mockMvc.perform(get("/students")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(mockStudents, response.getBody());
         verify(studentService, times(1)).getAll();
     }
 
     @Test
-    void testGetStudentById() {
+    void testGetStudentById() throws Exception {
         Long studentId = -1L;
 
         when(studentService.getById(studentId)).thenThrow(new InvalidValue("Nieprawidłowa wartość"));
 
-        assertThrows(InvalidValue.class, () -> {
-            ResponseEntity<StudentReadDTO> response = studentController.getStudentById(studentId);
-
-            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-            assertNull(response.getBody());
-        });
+        mockMvc.perform(get("/students/{id}", studentId)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest()) // Oczekujemy statusu HTTP 400
+                .andExpect(content().string("Invalid value provided"));
 
         verify(studentService, times(1)).getById(studentId);
     }
 
+
     @Test
-    void testDeleteStudentById() {
+    void testDeleteStudentById() throws Exception {
         Long studentId = 1L;
 
-        ResponseEntity<Void> response = studentController.deleteStudentById(studentId);
+        mockMvc.perform(delete("/students/{id}", studentId)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(studentService, times(1)).deleteStudentById(studentId);
     }
 
     @Test
-    void testSaveStudent() {
+    void testSaveStudent() throws Exception {
         StudentWriteDTO mockStudentWriteDTO = new StudentWriteDTO();
+        mockStudentWriteDTO.setName("Mikolaj");
+        mockStudentWriteDTO.setLastName("Kowalski");
+        mockStudentWriteDTO.setAge(21);
+        mockStudentWriteDTO.setStudentIndex("123241");
 
-        ResponseEntity<Void> response = studentController.saveStudent(mockStudentWriteDTO);
+        mockMvc.perform(post("/students")
+                        .content("{\"name\": \"Mikolaj\", \"lastName\": \"Kowalski\", \"age\": 21, \"studentIndex\": \"123241\"}")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isCreated());
 
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        verify(studentService, times(1)).saveStudent(mockStudentWriteDTO);
+        verify(studentService, times(1)).saveStudent(any(StudentWriteDTO.class));
     }
 
+
     @Test
-    void testGetStudentsWithAgeGreaterThan() {
+    void testGetStudentsWithAgeGreaterThan() throws Exception {
         Integer age = 20;
         List<StudentReadDTO> mockStudents = Collections.singletonList(new StudentReadDTO());
         when(studentService.getWithAgeGreatherThan(age)).thenReturn(mockStudents);
 
-        ResponseEntity<List<StudentReadDTO>> response = studentController.getStudentsWithAgeGreaterThan(age);
+        mockMvc.perform(get("/students/ageGreaterThan?age=" + age)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(mockStudents, response.getBody());
         verify(studentService, times(1)).getWithAgeGreatherThan(age);
     }
 
+
     @Test
-    void testGetStudentAge2timesById() {
+    void testGetStudentAge2timesById() throws Exception {
         Long studentId = 1L;
         Integer mockAge2times = 42;
         when(studentService.getStudentAge2timesById(studentId)).thenReturn(mockAge2times);
 
-        ResponseEntity<Integer> response = studentController.getStudentAge2timesById(studentId);
+        mockMvc.perform(get("/students/age2times/{id}", studentId)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().string("42"));
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(mockAge2times, response.getBody());
         verify(studentService, times(1)).getStudentAge2timesById(studentId);
     }
 }
